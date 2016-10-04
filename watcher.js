@@ -132,12 +132,9 @@ function checkChannel(channelName, callback) {
     } else {
       // Parse the body string to JSON.
       var bodyObj = JSON.parse(body);
-      if (!bodyObj.stream) {
-        // No stream in the response.
-        setImmediate(callback, new Error('No stream in the response. ' + bodyObj));
-      }
       // If online true otherwise false;
-      var isOnline = bodyObj.stream.length > 0;
+      var isOnline = bodyObj.stream ? true : false;
+      console.log(isOnline);
       // Let the function decide shoud we send sms to users.
       shouldSendSms(channelName, isOnline, bodyObj, function(err, res) {
         if (err) {
