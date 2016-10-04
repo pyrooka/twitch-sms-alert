@@ -134,7 +134,6 @@ function checkChannel(channelName, callback) {
       var bodyObj = JSON.parse(body);
       // If online true otherwise false;
       var isOnline = bodyObj.stream ? true : false;
-      console.log(isOnline);
       // Let the function decide shoud we send sms to users.
       shouldSendSms(channelName, isOnline, bodyObj, function(err, res) {
         if (err) {
