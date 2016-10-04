@@ -24,9 +24,11 @@ var followingChannelNamesArray;
 var redisUri;
 // Number of the sms have to send.
 var smsCounter;
+// Send sms when the cannel goes offline.
+var sendWhenOffline;
 
 // SMS messages.
-const goLiveMessage = '%s is streaming %s from %s. Channel status: %s.';
+const goLiveMessage = '%s is streaming %s from %s.';
 const goOfflineMessage = '%s goes offline!';
 
 // Redis client.
@@ -50,6 +52,7 @@ function init() {
   // Get the channels name as an array
   followingChannelNamesArray = process.env.CHANNEL_NAMES.split(',');
   redisUri = process.env.REDIS_URL;
+  sendWhenOffline = process.env.SEND_WHEN_OFFLINE;
   // Set the 'have to send' sms number from the smsReciversPhoneNumberArray multiply by the channels number.
   smsCounter = smsReciversPhoneNumberArray.length * followingChannelNamesArray.length;
 }
@@ -77,9 +80,8 @@ function createMessageContent(isOnline, channelName, response) {
   // Message content.
   var message;
   if (isOnline) {
-    message = util.format(goLiveMessage, response.streams[0].channel.display_name,
-                              response.streams[0].game, response.streams[0].created_at.split('T')[1].replace('Z',''),
-                              response.streams[0].channel.status);
+    message = util.format(goLiveMessage, response.stream.channel.display_name,
+                              response.stream.game, response.stream.created_at.split('T')[1].replace('Z',''));
   } else {
     message = util.format(goOfflineMessage, channelName);
   }
@@ -89,6 +91,10 @@ function createMessageContent(isOnline, channelName, response) {
 
 // Send sms to all of the telephone numbers specified in the config
 function sendSmsToUsers(isOnline, channelName, response, callback) {
+  // If set to zero or false don't send sms if the channel is offline.
+  if (!isOnline) {
+    setImmediate(callback, null, 'Offline but don\'t send because of the settings.')
+  }
   // Create the sms message content.
   var messageContent = createMessageContent(isOnline, channelName, response);
   // Iterated through the phone numbers.
@@ -126,12 +132,12 @@ function checkChannel(channelName, callback) {
     } else {
       // Parse the body string to JSON.
       var bodyObj = JSON.parse(body);
-      if (!bodyObj.streams) {
-        // No streams in the response.
-        setImmediate(callback, new Error('No streams in the response. ' + bodyObj));
+      if (!bodyObj.stream) {
+        // No stream in the response.
+        setImmediate(callback, new Error('No stream in the response. ' + bodyObj));
       }
       // If online true otherwise false;
-      var isOnline = bodyObj.streams.length > 0;
+      var isOnline = bodyObj.stream.length > 0;
       // Let the function decide shoud we send sms to users.
       shouldSendSms(channelName, isOnline, bodyObj, function(err, res) {
         if (err) {
