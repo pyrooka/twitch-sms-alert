@@ -14,6 +14,8 @@ var twilioApiSid;
 var twilioApiSecret;
 // Sender phone number of the sms notification.
 var smsSenderPhoneNumber;
+// Your twitch secret aka client-id.
+var twitchClientId;
 // Object what contains the phone numbers to send sms.
 var smsReciversPhoneNumberArray;
 // Channels what we are following.
@@ -33,7 +35,7 @@ var redisClient;
 
 // Create URL for the specified channel.
 function createUrl(channelName) {
-  return 'https://api.twitch.tv/kraken/streams?channel=' + channelName
+  return 'https://api.twitch.tv/kraken/streams/' + channelName
 }
 
 // Initialize the enviornment variables.
@@ -44,6 +46,7 @@ function init() {
   smsSenderPhoneNumber = process.env.SMS_SENDER_PHONE_NUMBER;
   // Get the phone numbers as an array
   smsReciversPhoneNumberArray = process.env.NOTIFICATION_PHONE_NUMBERS.split(',');
+  twitchClientId = process.env.TWITCH_CLIENT_ID;
   // Get the channels name as an array
   followingChannelNamesArray = process.env.CHANNEL_NAMES.split(',');
   redisUri = process.env.REDIS_URL;
@@ -104,8 +107,15 @@ function sendSmsToUsers(isOnline, channelName, response, callback) {
 
 // Check the channel. If online return true otherwise false,
 function checkChannel(channelName, callback) {
+  // The request object.
+  var requestOptions = {
+    url: createUrl(channelName),
+    headers: {
+      'Client-ID': twitchClientId
+    }
+  };
   // Get response from the twitch api.
-  request(createUrl(channelName), function(error, response, body) {
+  request(requestOptions, function(error, response, body) {
     // If no response from the server.
     if (!response) {
       setImmediate(callback, new Error('No response from the server.'));
