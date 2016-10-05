@@ -1,3 +1,4 @@
+'use strict';
 
 const request = require('request');
 const redis = require('redis');
@@ -17,7 +18,7 @@ var smsSenderPhoneNumber;
 // Your twitch secret aka client-id.
 var twitchClientId;
 // Object what contains the phone numbers to send sms.
-var smsReciversPhoneNumberArray;
+var smsReceiversPhoneNumberArray;
 // Channels what we are following.
 var followingChannelNamesArray;
 // Redis db uri
@@ -47,14 +48,14 @@ function init() {
   twilioApiSecret = process.env.TWILIO_API_SECRET;
   smsSenderPhoneNumber = process.env.SMS_SENDER_PHONE_NUMBER;
   // Get the phone numbers as an array
-  smsReciversPhoneNumberArray = process.env.NOTIFICATION_PHONE_NUMBERS.split(',');
+  smsReceiversPhoneNumberArray = process.env.NOTIFICATION_PHONE_NUMBERS ? process.env.NOTIFICATION_PHONE_NUMBERS.split(',') : [];
   twitchClientId = process.env.TWITCH_CLIENT_ID;
   // Get the channels name as an array
-  followingChannelNamesArray = process.env.CHANNEL_NAMES.split(',');
+  followingChannelNamesArray = process.env.CHANNEL_NAMES ? process.env.CHANNEL_NAMES.split(',') : [];
   redisUri = process.env.REDIS_URL;
-  sendWhenOffline = process.env.SEND_WHEN_OFFLINE;
-  // Set the 'have to send' sms number from the smsReciversPhoneNumberArray multiply by the channels number.
-  smsCounter = smsReciversPhoneNumberArray.length * followingChannelNamesArray.length;
+  sendWhenOffline = process.env.SEND_WHEN_OFFLINE ? true : false;
+  // Set the 'have to send' sms number from the smsReceiversPhoneNumberArray multiply by the channels number.
+  smsCounter = smsReceiversPhoneNumberArray.length * followingChannelNamesArray.length;
 }
 
 // Send sms via Twilio
@@ -98,9 +99,9 @@ function sendSmsToUsers(isOnline, channelName, response, callback) {
   // Create the sms message content.
   var messageContent = createMessageContent(isOnline, channelName, response);
   // Iterated through the phone numbers.
-  for (var i = 0; i < smsReciversPhoneNumberArray.length; ++i) {
+  for (var i = 0; i < smsReceiversPhoneNumberArray.length; ++i) {
     // Send sms to each number in the array.
-    sendSms(smsSenderPhoneNumber, smsReciversPhoneNumberArray[i], messageContent, function(err, res) {
+    sendSms(smsSenderPhoneNumber, smsReceiversPhoneNumberArray[i], messageContent, function(err, res) {
       if (err) {
         setImmediate(callback, new Error(err));
       }
@@ -213,34 +214,57 @@ function setSmsCountZero() {
 
 // Start the script.
 function start() {
-  // Init the enviornment variable.
+  // Init the environment variables.
   init();
-  // First connect to redis.
-  console.log('Connecting to the db...');
-  // Create connection to the db.
-  connectToRedis(function(err) {
-    if (err) {
-      console.error('ERROR: ' + err.toString());
-    } else {
-      console.log('Connected to redis db.');
-      // Iterates through the given channel names.
-      for (var i = 0; i < followingChannelNamesArray.length; ++i) {
-        if (!followingChannelNamesArray[i]) {
-          console.error('ERROR: Invalid channel name at: ' + i);
-        } else {
-          checkChannel(followingChannelNamesArray[i], function(err, res) {
-            if (err) {
-              console.error(err.toString());
-              checkSmsCount();
-            } else {
-              console.log(res.toString());
-              checkSmsCount();
-            }
-          });
+
+  // Make some basic validations.
+  if (followingChannelNamesArray.length === 0) {
+    console.error('ERROR: Please specify the channels to watch.');
+  }
+  else if (smsReceiversPhoneNumberArray.length === 0) {
+    console.error('ERROR: Please specify the phone numbers which will receive the SMS alerts.');
+  }
+  else if (!redisUri) {
+    console.error('ERROR: Please specify the Redis server to connect.');
+  }
+  else if (!twilioAccountSid || !twilioApiSid || !twilioApiSecret) {
+    console.error('ERROR: Please specify all the Twilio credentials.');
+  }
+  else if (!smsSenderPhoneNumber) {
+    console.error('ERROR: Please specify the SMS sender phone number.');
+  }
+  else if (!twitchClientId) {
+    console.error('ERROR: Please specify the Twitch Client-ID.');
+  } else {
+    // Everything looks good.
+
+    // First connect to redis.
+    console.log('Connecting to the db...');
+    // Create connection to the db.
+    connectToRedis(function(err) {
+      if (err) {
+        console.error('ERROR: ' + err.toString());
+      } else {
+        console.log('Connected to redis db.');
+        // Iterates through the given channel names.
+        for (var i = 0; i < followingChannelNamesArray.length; ++i) {
+          if (!followingChannelNamesArray[i]) {
+            console.error('ERROR: Invalid channel name at: ' + i);
+          } else {
+            checkChannel(followingChannelNamesArray[i], function(err, res) {
+              if (err) {
+                console.error(err.toString());
+                checkSmsCount();
+              } else {
+                console.log(res.toString());
+                checkSmsCount();
+              }
+            });
+          }
         }
       }
-    }
-  });
+    });
+  }
 }
 
 // Start the script.
