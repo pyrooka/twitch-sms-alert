@@ -1,3 +1,4 @@
+'use strict';
 
 const request = require('request');
 const redis = require('redis');
@@ -17,7 +18,7 @@ var smsSenderPhoneNumber;
 // Your twitch secret aka client-id.
 var twitchClientId;
 // Object what contains the phone numbers to send sms.
-var smsReciversPhoneNumberArray;
+var smsReceiversPhoneNumberArray;
 // Channels what we are following.
 var followingChannelNamesArray;
 // Redis db uri
@@ -47,14 +48,14 @@ function init() {
   twilioApiSecret = process.env.TWILIO_API_SECRET;
   smsSenderPhoneNumber = process.env.SMS_SENDER_PHONE_NUMBER;
   // Get the phone numbers as an array
-  smsReciversPhoneNumberArray = process.env.NOTIFICATION_PHONE_NUMBERS.split(',');
+  smsReceiversPhoneNumberArray = process.env.NOTIFICATION_PHONE_NUMBERS ? process.env.NOTIFICATION_PHONE_NUMBERS.split(',') : [];
   twitchClientId = process.env.TWITCH_CLIENT_ID;
   // Get the channels name as an array
-  followingChannelNamesArray = process.env.CHANNEL_NAMES.split(',');
+  followingChannelNamesArray = process.env.CHANNEL_NAMES ? process.env.CHANNEL_NAMES.split(',') : [];
   redisUri = process.env.REDIS_URL;
   sendWhenOffline = process.env.SEND_WHEN_OFFLINE;
-  // Set the 'have to send' sms number from the smsReciversPhoneNumberArray multiply by the channels number.
-  smsCounter = smsReciversPhoneNumberArray.length * followingChannelNamesArray.length;
+  // Set the 'have to send' sms number from the smsReceiversPhoneNumberArray multiply by the channels number.
+  smsCounter = smsReceiversPhoneNumberArray.length * followingChannelNamesArray.length;
 }
 
 // Send sms via Twilio
@@ -98,9 +99,9 @@ function sendSmsToUsers(isOnline, channelName, response, callback) {
   // Create the sms message content.
   var messageContent = createMessageContent(isOnline, channelName, response);
   // Iterated through the phone numbers.
-  for (var i = 0; i < smsReciversPhoneNumberArray.length; ++i) {
+  for (var i = 0; i < smsReceiversPhoneNumberArray.length; ++i) {
     // Send sms to each number in the array.
-    sendSms(smsSenderPhoneNumber, smsReciversPhoneNumberArray[i], messageContent, function(err, res) {
+    sendSms(smsSenderPhoneNumber, smsReceiversPhoneNumberArray[i], messageContent, function(err, res) {
       if (err) {
         setImmediate(callback, new Error(err));
       }
@@ -215,6 +216,17 @@ function setSmsCountZero() {
 function start() {
   // Init the enviornment variable.
   init();
+
+  // Make some basic validations.
+  if (followingChannelNamesArray.length === 0) {
+    console.error('ERROR: Please specify the channels to watch.');
+    return;
+  }
+  if (smsReceiversPhoneNumberArray.length === 0) {
+    console.error('ERROR: Please specify the phone numbers which will receive the SMS alerts.');
+    return;
+  }
+
   // First connect to redis.
   console.log('Connecting to the db...');
   // Create connection to the db.
