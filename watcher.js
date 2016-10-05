@@ -123,16 +123,27 @@ function checkChannel(channelName, callback) {
   };
   // Get response from the twitch api.
   request(requestOptions, function(error, response, body) {
+    // Error occurred.
+    if (error) {
+      setImmediate(callback, error);
+    }
     // If no response from the server.
-    if (!response) {
+    else if (!response) {
       setImmediate(callback, new Error('No response from the server.'));
     }
-    // If empty body in the response
+    // If empty body in the response.
     else if (!body) {
       setImmediate(callback, new Error('Empty body in the response.'));
     } else {
-      // Parse the body string to JSON.
-      var bodyObj = JSON.parse(body);
+      var bodyObj = null;
+      try {
+        // Parse the body string to JSON.
+        bodyObj = JSON.parse(body);
+      } catch (ex) {
+        setImmediate(callback, new Error('Invalid body JSON.'));
+        return;
+      }
+
       // If online true otherwise false;
       var isOnline = bodyObj.stream ? true : false;
       // Let the function decide shoud we send sms to users.
