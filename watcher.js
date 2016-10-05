@@ -92,9 +92,10 @@ function createMessageContent(isOnline, channelName, response) {
 
 // Send sms to all of the telephone numbers specified in the config
 function sendSmsToUsers(isOnline, channelName, response, callback) {
-  // If set to zero or false don't send sms if the channel is offline.
-  if (!isOnline) {
-    setImmediate(callback, null, 'Offline but don\'t send because of the settings.')
+  // If we don't want to send SMS if the user became offline.
+  if (!sendWhenOffline && !isOnline) {
+    setImmediate(callback, null, 'Offline but don\'t send because of the settings.');
+    return;
   }
   // Create the sms message content.
   var messageContent = createMessageContent(isOnline, channelName, response);
@@ -181,7 +182,7 @@ function connectToRedis(callback) {
 
 // Check old and new status of the cannel in the db
 function shouldSendSms(channelName, isOnline, bodyObj, callback) {
-  redisClient.getset(channelName, isOnline, function (err, resp) {
+  redisClient.getset(channelName, isOnline, function(err, resp) {
     // If get error, finish the function.
     if (err) {
       setImmediate(callback, new Error('Error occured while trying to getset to the redis db.'))
