@@ -82,7 +82,7 @@ function createMessageContent(isOnline, channelName, response) {
   var message;
   if (isOnline) {
     message = util.format(goLiveMessage, response.stream.channel.display_name,
-                              response.stream.game, response.stream.created_at.split('T')[1].replace('Z',''));
+                              response.stream.game, getTimeOnly(response.stream.created_at));
   } else {
     message = util.format(goOfflineMessage, channelName);
   }
@@ -222,6 +222,18 @@ function checkSmsCount() {
 // Set the 'have to send' sms count to zero.
 function setSmsCountZero() {
   smsCounter = 0;
+}
+
+// Add two hour to the current time, because of the timezones.
+function getTimeOnly(date) {
+  var fullDate = new Date(date);
+  // Add plus two hour.
+  var newDate = new Date(fullDate.getTime() + 2*60*60*1000);
+
+  // Create the string with the hourd, minutes and seconds only.
+  var timeString = newDate.getHours() + ':' + newDate.getMinutes() + ':' + newDate.getSeconds();
+
+  return timeString;
 }
 
 // Start the script.
