@@ -4,7 +4,7 @@ const request = require('request');
 const redis = require('redis');
 const twilio = require('twilio');
 const util = require('util');
-
+var moment = require('moment');
 
 // Application settings.
 // Twilio account secure ID.
@@ -226,14 +226,10 @@ function setSmsCountZero() {
 
 // Add two hour to the current time, because of the timezones.
 function getTimeOnly(date) {
-  var fullDate = new Date(date);
+  var fullDate = new moment(date);
   // Add plus two hour.
-  var newDate = new Date(fullDate.getTime() + 2*60*60*1000);
-
-  // Create the string with the hourd, minutes and seconds only.
-  var timeString = newDate.getHours() + ':' + newDate.getMinutes() + ':' + newDate.getSeconds();
-
-  return timeString;
+  var newDate = fullDate.add(2, 'hours');
+  return newDate.format('HH:mm:ss');
 }
 
 // Start the script.
