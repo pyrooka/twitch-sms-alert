@@ -224,14 +224,25 @@ function setSmsCountZero() {
   smsCounter = 0;
 }
 
+// Add leading zero if num parameter is a digit. 
+function fixLeadingZero(num){
+  if(num < 10)
+    return '0'+ num;
+  else
+    return num + '';
+}
+
 // Add two hour to the current time, because of the timezones.
 function getTimeOnly(date) {
   var fullDate = new Date(date);
   // Add plus two hour.
   var newDate = new Date(fullDate.getTime() + 2*60*60*1000);
+  var currentHours = fixLeadingZero(newDate.getHours());
+  var currentMinutes = fixLeadingZero(newDate.getMinutes());
+  var currentSeconds = fixLeadingZero(newDate.getSeconds());
 
-  // Create the string with the hourd, minutes and seconds only.
-  var timeString = newDate.getHours() + ':' + newDate.getMinutes() + ':' + newDate.getSeconds();
+  // Create the string with the hours, minutes and seconds only.
+  var timeString = currentHours + ':' + currentMinutes + ':' + currentSeconds;
 
   return timeString;
 }
