@@ -4,7 +4,7 @@ const request = require('request');
 const redis = require('redis');
 const twilio = require('twilio');
 const util = require('util');
-const moment = require('moment');
+const moment = require('moment-timezone');
 
 
 // Application settings.
@@ -26,8 +26,10 @@ var followingChannelNamesArray;
 var redisUri;
 // Number of the sms have to send.
 var smsCounter;
-// Send sms when the cannel goes offline.
+// Send sms when the channel goes offline.
 var sendWhenOffline;
+// All the dates in the messages converted to this timezone.
+var messageTimezone;
 
 // SMS messages.
 const goLiveMessage = '%s is streaming %s from %s.';
@@ -42,7 +44,7 @@ function createUrl(channelName) {
   return 'https://api.twitch.tv/kraken/streams/' + channelName
 }
 
-// Initialize the enviornment variables.
+// Initialize the environment variables.
 function init() {
   twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
   twilioApiSid = process.env.TWILIO_API_SID;
@@ -55,6 +57,7 @@ function init() {
   followingChannelNamesArray = process.env.CHANNEL_NAMES ? process.env.CHANNEL_NAMES.split(',') : [];
   redisUri = process.env.REDIS_URL;
   sendWhenOffline = process.env.SEND_WHEN_OFFLINE ? true : false;
+  messageTimezone = process.env.MESSAGE_TIMEZONE || 'Europe/Budapest';
   // Set the 'have to send' sms number from the smsReceiversPhoneNumberArray multiply by the channels number.
   smsCounter = smsReceiversPhoneNumberArray.length * followingChannelNamesArray.length;
 }
@@ -83,7 +86,8 @@ function createMessageContent(isOnline, channelName, response) {
   var message;
   if (isOnline) {
     message = util.format(goLiveMessage, response.stream.channel.display_name,
-                              response.stream.game, getTimeOnly(response.stream.created_at));
+                          response.stream.game,
+                          moment.tz(response.stream.created_at, messageTimezone).format('HH:mm'));
   } else {
     message = util.format(goOfflineMessage, channelName);
   }
@@ -225,14 +229,16 @@ function setSmsCountZero() {
   smsCounter = 0;
 }
 
-// Add two hour to the current time, because of the timezones.
-function getTimeOnly(date) {
-  var fullDate = new moment(date);
-  // Add plus two hour.
-  var newDate = fullDate.add(2, 'hours');
-
-  // Create the string with the hourd, minutes and seconds only.
-  return  newDate.format('HH:mm:ss');
+// Returns true if the given timezone name is valid otherwise false,
+function timezoneNameValid(timezoneName) {
+  const timezoneNames = moment.tz.names();
+  for (var i = 0; i < timezoneNames.length; ++i) {
+    // Found.
+    if (timezoneNames[i] === timezoneName) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Start the script.
@@ -258,6 +264,9 @@ function start() {
   }
   else if (!twitchClientId) {
     console.error('ERROR: Please specify the Twitch Client-ID.');
+  }
+  else if (!timezoneNameValid(messageTimezone)) {
+    console.error('ERROR: Invalid timezone name.');
   } else {
     // Everything looks good.
 
